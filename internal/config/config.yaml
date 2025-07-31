@@ -10,7 +10,7 @@ database:
   name: 'postgres'
 
 scheduler:
-  interval: 5
+  interval: 120
 
 sender:
   address: 'https://webhook.site/9e46bf82-61a4-48c5-9222-67861c533365'
