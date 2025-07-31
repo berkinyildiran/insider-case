@@ -1,0 +1,21 @@
+cache:
+  host: 'redis' # 127.0.0.1
+  port: 6379
+
+database:
+  host: 'postgres' # 127.0.0.1
+  port: 5432
+  user: 'postgres'
+  password: 'docker'
+  name: 'postgres'
+
+scheduler:
+  interval: 5
+
+sender:
+  address: 'https://webhook.site/9e46bf82-61a4-48c5-9222-67861c533365'
+  cache_ttl: 300
+  fetch_limit: 2
+
+server:
+  port: 8080

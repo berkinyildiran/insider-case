@@ -1,0 +1,253 @@
+openapi: 3.0.3
+info:
+  title: Insider Case - Message Sending Service API
+  description: A robust Go-based messaging service that handles asynchronous message processing with scheduling capabilities. The service stores messages in a PostgreSQL database and periodically processes pending messages by sending them to external webhook endpoints.
+  version: 1.0.0
+  contact:
+    name: Insider Case Development Team
+  license:
+    name: Insider Case Study License
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /messaging/sent:
+    get:
+      tags:
+        - Messages
+      summary: Retrieve sent messages with pagination
+      description: Get a paginated list of messages that have been sent (success or failed status). Supports pagination with configurable limit and offset parameters.
+      operationId: getSentMessages
+      parameters:
+        - name: limit
+          in: query
+          required: true
+          description: Number of messages to retrieve (1-100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            example: 10
+        - name: offset
+          in: query
+          required: false
+          description: Number of messages to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+      responses:
+        '200':
+          description: Successfully retrieved sent messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+              examples:
+                sentMessages:
+                  summary: Example of sent messages response
+                  value:
+                    - id: 123e4567-e89b-12d3-a456-426614174000
+                      content: Hello, this is a test message
+                      recipient_phone_number: '+1234567890'
+                      sending_status: 1
+                      created_at: '2024-01-15T10:30:00Z'
+                      updated_at: '2024-01-15T10:35:00Z'
+                    - id: 456e7890-e12b-34d5-b678-901234567890
+                      content: Another message
+                      recipient_phone_number: '+0987654321'
+                      sending_status: 1
+                      created_at: '2024-01-15T09:15:00Z'
+                      updated_at: '2024-01-15T09:20:00Z'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidLimit:
+                  summary: Invalid limit parameter
+                  value:
+                    success: false
+                    message: validation failed
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messaging/start:
+    post:
+      tags:
+        - Scheduler
+      summary: Start the message scheduler
+      description: Starts the background message processing scheduler that periodically processes pending messages and sends them to webhook endpoints.
+      operationId: startScheduler
+      responses:
+        '200':
+          description: Scheduler started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchedulerResponse'
+              examples:
+                started:
+                  summary: Scheduler started
+                  value:
+                    message: Scheduler started successfully
+                alreadyRunning:
+                  summary: Scheduler already running
+                  value:
+                    message: Scheduler is already running
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messaging/stop:
+    post:
+      tags:
+        - Scheduler
+      summary: Stop the message scheduler
+      description: Stops the background message processing scheduler. Any currently processing messages will complete before the scheduler fully stops.
+      operationId: stopScheduler
+      responses:
+        '200':
+          description: Scheduler stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchedulerResponse'
+              examples:
+                stopped:
+                  summary: Scheduler stopped
+                  value:
+                    message: Scheduler stopped successfully
+                notRunning:
+                  summary: Scheduler not running
+                  value:
+                    message: Scheduler is not running
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    Message:
+      type: object
+      description: Message entity representing a text message to be sent to a recipient
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the message
+          example: 123e4567-e89b-12d3-a456-426614174000
+        content:
+          type: string
+          maxLength: 100
+          description: The message content to be sent
+          example: Hello, this is a test message
+        recipient_phone_number:
+          type: string
+          maxLength: 20
+          description: Phone number of the message recipient
+          example: '+1234567890'
+        sending_status:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+          description: Current status of the message sending process
+          example: 1
+          x-enum-varnames:
+            - Pending
+            - Success
+            - Failed
+          x-enum-descriptions:
+            - Message is pending and will be processed by the scheduler
+            - Message was successfully sent to the webhook endpoint
+            - Message sending failed due to an error
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the message was created
+          example: '2024-01-15T10:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the message was last updated
+          example: '2024-01-15T10:35:00Z'
+      required:
+        - id
+        - content
+        - recipient_phone_number
+        - sending_status
+        - created_at
+        - updated_at
+    SendingStatus:
+      type: integer
+      enum:
+        - 0
+        - 1
+        - 2
+      description: Message sending status enumeration
+      x-enum-varnames:
+        - Pending
+        - Success
+        - Failed
+      x-enum-descriptions:
+        - Message is pending and awaiting processing
+        - Message was successfully sent
+        - Message sending failed
+    Pagination:
+      type: object
+      description: Pagination parameters for list endpoints
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum number of items to return
+          example: 10
+        offset:
+          type: integer
+          minimum: 0
+          description: Number of items to skip
+          example: 0
+      required:
+        - limit
+    SchedulerResponse:
+      type: object
+      description: Response from scheduler control operations
+      properties:
+        message:
+          type: string
+          description: Status message describing the scheduler operation result
+          example: Scheduler started successfully
+      required:
+        - message
+    ErrorResponse:
+      type: object
+      description: Error response structure
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the operation was successful
+          example: false
+        message:
+          type: string
+          description: Error message describing what went wrong
+          example: something went wrong
+tags:
+  - name: Messages
+    description: Operations related to message management and retrieval
+  - name: Scheduler
+    description: Operations for controlling the background message processing scheduler
